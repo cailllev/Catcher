@@ -37,7 +37,7 @@ def login():
 
 @app.route("/<id>", methods=["GET", "POST"])
 def catch(id):
-    if "ok" not in session:
+	if "ok" not in session:
 		return redirect("/login")
 
 	# remove old ids
