@@ -6,7 +6,7 @@ from time import time
 
 
 app = Flask(__name__)
-app.secret_key(token_bytes(16))
+app.secret_key = token_bytes(16)
 pw_hash = b"$2b$12$TlDpPzihBCfMvQylze2t4um3vZ9YbbGuOn46ay7xLhO2wK0hQKT7."
 pw_salt = b"$2b$12$TlDpPzihBCfMvQylze2t4u"
 
