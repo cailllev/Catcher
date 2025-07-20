@@ -1,9 +1,15 @@
-from flask import Flask, request
+from bcrypt import gensalt, hashpw
+from flask import Flask, request, session, render_template
+from secrets import token_bytes
 from string import ascii_lowercase
 from time import time
 
 
 app = Flask(__name__)
+app.secret_key(token_bytes(16))
+pw_hash = b"$2b$12$TlDpPzihBCfMvQylze2t4um3vZ9YbbGuOn46ay7xLhO2wK0hQKT7."
+pw_salt = b"$2b$12$TlDpPzihBCfMvQylze2t4u"
+
 active = {}
 allowed = ascii_lowercase
 timeout = 60
@@ -11,14 +17,29 @@ id_len = 6
 max_content_len = 10**5 # max 100 kb
 max_active = 100  # 100 * 100kb = 10 Mb
 
-
 @app.route("/")
 def index():
 	return "submit id like GET /abcdef create and read requests and POST /abcdef to send data\n"
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+	if request.method == "GET":
+		return render_template("login")
+	
+	pw = request.form.get("password").encode()
+	if hashpw(pw, pw_salt) == pw_hash:
+		session["ok"] = True
+		return redirect("/")
+
+	return redirect("/login")
+
+
 @app.route("/<id>", methods=["GET", "POST"])
 def catch(id):
+    if "ok" not in session:
+		return redirect("/login")
+
 	# remove old ids
 	global active
 	active = {key:val for key,val in active.items() if (val["time"] + timeout) > time()}
