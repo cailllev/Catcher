@@ -1,5 +1,6 @@
 from bcrypt import gensalt, hashpw
 from flask import Flask, redirect, render_template, request, session
+from random import choices
 from secrets import token_bytes
 from string import ascii_lowercase
 from time import time
@@ -11,21 +12,30 @@ pw_hash = b"$2b$12$TlDpPzihBCfMvQylze2t4um3vZ9YbbGuOn46ay7xLhO2wK0hQKT7."
 pw_salt = b"$2b$12$TlDpPzihBCfMvQylze2t4u"
 
 active = {}
-allowed = ascii_lowercase
-timeout = 60
 id_len = 6
-max_content_len = 10**5 # max 100 kb
-max_active = 100  # 100 * 100kb = 10 Mb
+timeout = 120 # sec
+max_content_len = 10**7 # max 10Mb
+max_active = 10  # max 100Mb
 
 @app.route("/")
 def index():
-	return "submit id like GET /abcdef create and read requests and POST /abcdef to send data\n"
+	if "ok" not in session:
+		return redirect("/login")
 
+	req_id = "".join(choices(ascii_lowercase, k=id_len))
+	active[req_id] = {}
+	active[req_id]["time"] = int(time())
+
+	return f"""
+- created id {req_id} for {timeout} seconds<br>
+- you can now submit data with POST /{req_id} (don't forget the session cookie)<br>
+- then read the data with GET /{req_id} (don't forget the session cookie)<br>
+"""
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
 	if request.method == "GET":
-		return render_template("login")
+		return render_template("login.html")
 	
 	pw = request.form.get("password").encode()
 	if hashpw(pw, pw_salt) == pw_hash:
@@ -35,8 +45,8 @@ def login():
 	return redirect("/login")
 
 
-@app.route("/<id>", methods=["GET", "POST"])
-def catch(id):
+@app.route("/<req_id>", methods=["GET", "POST"])
+def catch(req_id):
 	if "ok" not in session:
 		return redirect("/login")
 
@@ -45,14 +55,10 @@ def catch(id):
 	active = {key:val for key,val in active.items() if (val["time"] + timeout) > time()}
 
 	if request.method == "GET":
-		if id in active:
-			if "req" in active[id]:
-				return active[id]["req"]
+		if req_id in active:
+			if "req" in active[req_id]:
+				return active[req_id]["req"]
 			return "no requests yet\n"
-		if id and len(id) == 6 and all(c in allowed for c in id):
-			active[id] = {}
-			active[id]["time"] = int(time())
-			return f"activated {id} until {int(time()) + timeout}\n"
 		return "invalid id\n", 400
 
 	if request.method == "POST":
@@ -60,10 +66,10 @@ def catch(id):
 			return "request too large\n", 400
 		if len(active) > max_active:
 			return "server busy\n", 429
-		if id not in active:
+		if req_id not in active:
 			return "bad id\n", 400
 
-		active[id]["req"] = str(request.headers).encode() + request.get_data() + b"\n"
+		active[req_id]["req"] = str(request.headers).encode() + request.get_data() + b"\n"
 		return "caught\n"
 
 
