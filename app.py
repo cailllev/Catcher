@@ -1,5 +1,5 @@
 from bcrypt import gensalt, hashpw
-from flask import Flask, request, session, render_template
+from flask import Flask, redirect, render_template, request, session
 from secrets import token_bytes
 from string import ascii_lowercase
 from time import time
